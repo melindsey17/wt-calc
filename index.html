@@ -104,7 +104,7 @@
 <div class="container">
   <h1>Weight Trend Calculator</h1>
   <div class="subtitle">
-    Paste weight data (date, time, weight — trailing text ignored). Calculates exact-elapsed-time trends at ~1yr, ~6mo, ~3mo, ~1mo, and ~1wk, and classifies weight loss severity using ASPEN/AND chronic illness malnutrition criteria.
+    Paste weight data (date, time, weight — trailing text ignored). Calculates exact-elapsed-time trends at ~1yr, ~6mo, ~3mo, and ~1mo, and classifies weight loss severity using ASPEN/AND chronic illness malnutrition criteria.
   </div>
 
   <textarea id="rawData" placeholder="07-21-25 09:46:46   140.65               CLE GERIPACT APP 4
@@ -124,20 +124,14 @@
 // ASPEN/AND Chronic Illness Malnutrition Criteria (Table 9-6)
 // Each interval has a moderate threshold and a severe threshold (severe = "greater than")
 const thresholds = {
-  "1 week":   { moderate: 5,   severe: 5   }, // acute table has 1-2%/>2% for 1wk; chronic table has no 1wk row,
-                                               // so 1wk here uses the 1-month value pro-rated conservatively as a flag point.
   "1 month":  { moderate: 5,   severe: 5   },
   "3 months": { moderate: 7.5, severe: 7.5 },
   "6 months": { moderate: 10,  severe: 10  },
   "1 year":   { moderate: 20,  severe: 20  },
 };
 
-// NOTE ON 1-WEEK: The ASPEN/AND chronic-illness table does not define a 1-week row.
-// Using the 1-month threshold (5%) as a proxy for 1-week is NOT clinically validated —
-// flagged here only as "meets 1-month-equivalent pace" for awareness, not a formal severity call.
-
-const intervalOrder = ["1 year", "6 months", "3 months", "1 month", "1 week"];
-const intervalMonths = { "1 year": 12, "6 months": 6, "3 months": 3, "1 month": 1, "1 week": 12/52 };
+const intervalOrder = ["1 year", "6 months", "3 months", "1 month"];
+const intervalMonths = { "1 year": 12, "6 months": 6, "3 months": 3, "1 month": 1 };
 
 function parseDateStr(m, day, y) {
   let year = parseInt(y, 10);
@@ -290,7 +284,6 @@ function renderResults(mostRecent, rows, formattedLine, anySevere, anyModerate, 
       </div>`;
     }
   });
-  html += `<div class="criteria-note">Note: the chronic-illness ASPEN/AND table has no defined 1-week criterion — the ~1 week row above is shown for tracking only and uses the 1-month threshold as an informal reference point, not a validated severity cutoff.</div>`;
   html += `</div>`;
 
   html += `<div class="section"><h2>Formatted Output</h2>
