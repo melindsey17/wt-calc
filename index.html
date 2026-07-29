@@ -1,0 +1,177 @@
+const rawInput = document.getElementById('rawInput');
+const calculateBtn = document.getElementById('calculateBtn');
+const clearBtn = document.getElementById('clearBtn');
+const copyBtn = document.getElementById('copyBtn');
+const results = document.getElementById('results');
+
+const thresholds = [
+  { label: '1 year', months: 12, lossPct: 20 },
+  { label: '6 months', months: 6, lossPct: 10 },
+  { label: '3 months', months: 3, lossPct: 7.5 },
+  { label: '1 month', months: 1, lossPct: 5 }
+];
+
+function parseLines(text) {
+  const lines = text.split(/\r?\n/);
+  const items = [];
+  const lineRegex = /^\s*(\d{2}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+([+-]?\d+(?:[.,]\d+)?)(?:\s|$)/;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const match = line.match(lineRegex);
+    if (!match) continue;
+
+    const [, dateText, timeText, weightText] = match;
+    const weight = Number(weightText.replace(',', '.'));
+    if (Number.isNaN(weight)) continue;
+
+    const [month, day, year] = dateText.split('-').map(Number);
+    const fullYear = 2000 + year;
+    const [hour, minute, second] = timeText.split(':').map(Number);
+    const timestamp = new Date(fullYear, month - 1, day, hour, minute, second).getTime();
+
+    items.push({ timestamp, weight, rawLine, dateText, timeText });
+  }
+
+  return items.sort((a, b) => a.timestamp - b.timestamp);
+}
+
+const AVG_MONTH_MS = 30.4375 * 24 * 60 * 60 * 1000;
+
+// Subtract calendar months from a timestamp (handles month-length differences correctly)
+function subtractMonths(timestamp, monthsToSubtract) {
+  const d = new Date(timestamp);
+  d.setMonth(d.getMonth() - monthsToSubtract);
+  return d.getTime();
+}
+
+// Finds the data point closest to (but not exceeding) the given month window,
+// excluding the reference point itself.
+function findBestPoint(entries, referenceTimestamp, months) {
+  const targetTimestamp = subtractMonths(referenceTimestamp, months);
+  const candidates = entries.filter(
+    e => e.timestamp >= targetTimestamp && e.timestamp < referenceTimestamp
+  );
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => a.timestamp - b.timestamp);
+  return candidates[0]; // closest to the target boundary (least time inside the window)
+}
+
+function formatWeightChange(current, prior) {
+  const diff = current - prior;
+  const percent = Math.abs((diff / prior) * 100);
+  const direction = diff < 0 ? 'loss' : 'gain';
+  return {
+    change: Math.abs(diff).toFixed(2),
+    percent: percent.toFixed(2),
+    direction,
+    rawPercent: percent,
+  };
+}
+
+function getSignificance(lossPct) {
+  // A loss is significant if it meets ANY threshold, regardless of which interval it was measured under.
+  const matched = thresholds.filter(t => lossPct >= t.lossPct);
+  if (!matched.length) return [];
+  return matched;
+}
+
+function buildResults(parsed) {
+  if (!parsed.length) {
+    return {
+      html: '<p class="error">No valid weight lines found. Make sure each line contains a date, time, and weight value.</p>',
+      summary: '',
+    };
+  }
+
+  const reference = parsed[parsed.length - 1];
+  const referenceDate = new Date(reference.timestamp);
+
+  const intervalMonths = [12, 6, 3, 1];
+
+  const perInterval = intervalMonths.map(months => {
+    const label = months === 12 ? '1 year' : `${months} month${months > 1 ? 's' : ''}`;
+    const entry = findBestPoint(parsed, reference.timestamp, months);
+
+    if (!entry) {
+      return {
+        label,
+        entry: null,
+        summary: `No data point available within ~${label}`,
+      };
+    }
+
+    const elapsedMs = reference.timestamp - entry.timestamp;
+    const exactMonths = (elapsedMs / AVG_MONTH_MS).toFixed(1);
+    const { change, percent, direction, rawPercent } = formatWeightChange(reference.weight, entry.weight);
+    const isLoss = direction === 'loss';
+    const significantThresholds = isLoss ? getSignificance(rawPercent) : [];
+
+    return {
+      label,
+      entry,
+      exactMonths,
+      change,
+      percent,
+      direction,
+      summary: `${change}#/${percent}% ${direction} x ~${exactMonths} months`,
+      significantThresholds,
+    };
+  });
+
+  const summaryText = perInterval.map(item => item.summary).join(', ') + '.';
+
+  const intervalHtml = perInterval.map(item => {
+    if (!item.entry) {
+      return `<li><strong>${item.label}:</strong> ${item.summary}.</li>`;
+    }
+    const sigNote = item.significantThresholds.length
+      ? `<span class="success"> ⚠ SIGNIFICANT (meets ${item.significantThresholds.map(t => t.lossPct + '% / ' + t.label).join(', ')} threshold${item.significantThresholds.length > 1 ? 's' : ''})</span>`
+      : '';
+    return `<li><strong>${item.label}</strong> (used ${item.entry.dateText}, ${item.entry.weight} lb): ${item.summary}.${sigNote}</li>`;
+  }).join('');
+
+  const significantItems = perInterval
+    .filter(item => item.significantThresholds && item.significantThresholds.length)
+    .map(item => `~${item.exactMonths} month interval (${item.percent}% loss) meets ${item.significantThresholds.map(t => t.lossPct + '%/' + t.label).join(', ')} threshold${item.significantThresholds.length > 1 ? 's' : ''}`);
+
+  const verdict = significantItems.length
+    ? `<p class="success"><strong>Significant weight loss detected:</strong> ${significantItems.join('; ')}.</p>`
+    : '<p class="warning">No interval met the significant weight loss threshold.</p>';
+
+  const html = `
+    <p><strong>Most recent:</strong> ${referenceDate.toLocaleDateString()} ${reference.timeText} — ${reference.weight} lbs.</p>
+    <ul>${intervalHtml}</ul>
+    <p><strong>Copy-ready summary:</strong></p>
+    <pre id="summaryLine">${summaryText}</pre>
+    ${verdict}
+  `;
+
+  return { html, summary: summaryText };
+}
+
+function updateResults() {
+  const parsed = parseLines(rawInput.value);
+  const result = buildResults(parsed);
+  results.innerHTML = result.html;
+  copyBtn.dataset.summary = result.summary;
+}
+
+calculateBtn.addEventListener('click', updateResults);
+clearBtn.addEventListener('click', () => {
+  rawInput.value = '';
+  results.innerHTML = '<p class="note">Enter your raw weight log text and press Calculate to see the interval breakdown, summary line, and verdict.</p>';
+  copyBtn.dataset.summary = '';
+});
+copyBtn.addEventListener('click', async () => {
+  const summary = copyBtn.dataset.summary || '';
+  if (!summary) return;
+  try {
+    await navigator.clipboard.writeText(summary);
+    copyBtn.textContent = 'Copied!';
+    setTimeout(() => { copyBtn.textContent = 'Copy summary'; }, 1500);
+  } catch (err) {
+    alert('Unable to copy summary line.');
+  }
+});
