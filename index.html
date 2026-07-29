@@ -275,8 +275,8 @@ function renderResults(mostRecent, rows, formattedLine, anySevere, anyModerate, 
       html += `<div class="row none">${r.label}: no data point available within this window</div>`;
     } else {
       const cls = r.severity === "severe" ? "severe" : r.severity === "moderate" ? "moderate" : "";
-      const badge = r.severity === "severe" ? '<span class="flag-badge">⚠ SEVERE</span>'
-                  : r.severity === "moderate" ? '<span class="flag-badge">⚠ MODERATE</span>' : "";
+      const badge = r.severity === "severe" ? '<span class="flag-badge"> SEVERE</span>'
+                  : r.severity === "moderate" ? '<span class="flag-badge"> MODERATE</span>' : "";
       html += `<div class="row ${cls}">
         <strong>${r.label}</strong> (used ${r.chosenDate}, ${r.chosenWeight} lb):
         ${r.lbsChange.toFixed(2)}# / ${r.pctChange.toFixed(2)}% ${r.direction} x ~${r.monthsElapsed.toFixed(1)} months
