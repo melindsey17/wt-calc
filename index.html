@@ -107,8 +107,7 @@
     Paste weight data (date, time, weight — trailing text ignored). Calculates exact-elapsed-time trends at ~1yr, ~6mo, ~3mo, and ~1mo, and classifies weight loss severity using ASPEN/AND chronic illness malnutrition criteria.
   </div>
 
-  <textarea id="rawData" placeholder="07-21-25 09:46:46   140.65               CLE GERIPACT APP 4
-07-24-25 13:06:19   139.99 WP            CLE GERIPACT PHARM"></textarea>
+  <textarea id="rawData" placeholder="MM-DD-YY HH:MM:SS   weight   (any trailing text is ignored)"></textarea>
 
   <div class="btn-row">
     <button class="btn-primary" onclick="calculate()">Calculate Trend</button>
@@ -275,8 +274,8 @@ function renderResults(mostRecent, rows, formattedLine, anySevere, anyModerate, 
       html += `<div class="row none">${r.label}: no data point available within this window</div>`;
     } else {
       const cls = r.severity === "severe" ? "severe" : r.severity === "moderate" ? "moderate" : "";
-      const badge = r.severity === "severe" ? '<span class="flag-badge"> SEVERE</span>'
-                  : r.severity === "moderate" ? '<span class="flag-badge"> MODERATE</span>' : "";
+      const badge = r.severity === "severe" ? '<span class="flag-badge">SEVERE</span>'
+                  : r.severity === "moderate" ? '<span class="flag-badge">MODERATE</span>' : "";
       html += `<div class="row ${cls}">
         <strong>${r.label}</strong> (used ${r.chosenDate}, ${r.chosenWeight} lb):
         ${r.lbsChange.toFixed(2)}# / ${r.pctChange.toFixed(2)}% ${r.direction} x ~${r.monthsElapsed.toFixed(1)} months
@@ -319,14 +318,13 @@ function renderResults(mostRecent, rows, formattedLine, anySevere, anyModerate, 
 
 function loadSample() {
   document.getElementById("rawData").value =
-`07-21-25 09:46:46   140.65               CLE GERIPACT APP 4 POST
-07-24-25 13:06:19   139.99 WP            CLE GERIPACT PHARM     
-08-21-25 13:12:02   149.25               CLE GERIPACT PHARM
-09-11-25 13:45:37   145.06               CLE GERIPACT PHARM   
-12-31-25 10:18:29   149.69               CLE GERIPACT PHARM    
-02-05-26 13:54:01   147.49               CLE GERIPACT APP 4 
-03-18-26 14:01:21   152.2 A SW           CLE NUTR 02        
-04-02-26 10:08:08   147.2 A              CLE HEM ONC FELLOW`;
+`07-30-25 09:00:00   200.0               SAMPLE DATA
+08-30-25 09:00:00   198.0               SAMPLE DATA
+10-30-25 09:00:00   195.0               SAMPLE DATA
+01-30-26 09:00:00   190.0               SAMPLE DATA
+04-30-26 09:00:00   185.0               SAMPLE DATA
+06-30-26 09:00:00   180.0               SAMPLE DATA
+07-30-26 09:00:00   150.0               SAMPLE DATA`;
 }
 
 function clearAll() {
