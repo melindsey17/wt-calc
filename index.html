@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -104,7 +105,7 @@
 <div class="container">
   <h1>Weight Trend Calculator</h1>
   <div class="subtitle">
-    Paste weight data: date, time, and weight (trailing clinic text is ignored). Calculates weight trends at ~1yr, ~6mo, ~3mo, and ~1mo intervals and classifies weight loss severity using ASPEN/AND chronic illness malnutrition criteria.
+    Paste weight data (date, time, weight — trailing text ignored). Calculates exact-elapsed-time trends at ~1yr, ~6mo, ~3mo, and ~1mo, and classifies weight loss severity using ASPEN/AND chronic illness malnutrition criteria.
   </div>
 
   <textarea id="rawData" placeholder="MM-DD-YY HH:MM:SS   weight   (any trailing text is ignored)"></textarea>
@@ -212,27 +213,12 @@ function calculate() {
       else if (absPct >= t.moderate) severity = "moderate";
     }
 
-    // Cross-check against ALL thresholds (a big short-term loss should flag even under a longer label)
-    let crossFlags = [];
-    if (direction === "loss") {
-      intervalOrder.forEach(otherLabel => {
-        if (otherLabel === label) return;
-        const ot = thresholds[otherLabel];
-        if (absPct > ot.severe) crossFlags.push({ label: otherLabel, level: "severe" });
-        else if (absPct >= ot.moderate) crossFlags.push({ label: otherLabel, level: "moderate" });
-      });
-    }
-
     if (severity === "severe") { anySevere = true; }
     if (severity === "moderate") { anyModerate = true; }
-    crossFlags.forEach(f => {
-      if (f.level === "severe") anySevere = true;
-      if (f.level === "moderate") anyModerate = true;
-    });
 
     rows.push({
       label, chosenDate: chosen.dateStr, chosenWeight: chosen.weight,
-      monthsElapsed, lbsChange: absLbs, pctChange: absPct, direction, severity, crossFlags
+      monthsElapsed, lbsChange: absLbs, pctChange: absPct, direction, severity
     });
   });
 
@@ -243,13 +229,6 @@ function calculate() {
     } else if (r.severity === "moderate") {
       moderateNotes.push(`~${r.monthsElapsed.toFixed(1)} month interval: ${r.pctChange.toFixed(2)}% loss — moderate malnutrition criteria for ${r.label} (≥${thresholds[r.label].moderate}%)`);
     }
-    r.crossFlags.forEach(f => {
-      if (f.level === "severe") {
-        severeNotes.push(`~${r.monthsElapsed.toFixed(1)} month interval: ${r.pctChange.toFixed(2)}% loss also exceeds SEVERE threshold normally used for ${f.label} (>${thresholds[f.label].severe}%)`);
-      } else {
-        moderateNotes.push(`~${r.monthsElapsed.toFixed(1)} month interval: ${r.pctChange.toFixed(2)}% loss also meets moderate threshold normally used for ${f.label} (≥${thresholds[f.label].moderate}%)`);
-      }
-    });
   });
 
   const formattedLine = rows
@@ -324,7 +303,7 @@ function loadSample() {
 01-30-26 09:00:00   190.0               SAMPLE DATA
 04-30-26 09:00:00   185.0               SAMPLE DATA
 06-30-26 09:00:00   180.0               SAMPLE DATA
-07-30-26 09:00:00   150.0               SAMPLE DATA`;
+07-30-26 09:00:00   170.0               SAMPLE DATA`;
 }
 
 function clearAll() {
