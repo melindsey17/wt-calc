@@ -181,10 +181,6 @@ function calculate() {
   const refDate = mostRecent.date;
 
   const rows = [];
-  let anySevere = false;
-  let anyModerate = false;
-  const severeNotes = [];
-  const moderateNotes = [];
 
   intervalOrder.forEach(label => {
     const months = intervalMonths[label];
@@ -213,35 +209,24 @@ function calculate() {
       else if (absPct >= t.moderate) severity = "moderate";
     }
 
-    if (severity === "severe") { anySevere = true; }
-    if (severity === "moderate") { anyModerate = true; }
-
     rows.push({
       label, chosenDate: chosen.dateStr, chosenWeight: chosen.weight,
       monthsElapsed, lbsChange: absLbs, pctChange: absPct, direction, severity
     });
   });
 
-  rows.forEach(r => {
-    if (r.none || r.direction !== "loss") return;
-    if (r.severity === "severe") {
-      severeNotes.push(`~${r.monthsElapsed.toFixed(1)} month interval: ${r.pctChange.toFixed(2)}% loss — SEVERE malnutrition criteria for ${r.label} (>${thresholds[r.label].severe}%)`);
-    } else if (r.severity === "moderate") {
-      moderateNotes.push(`~${r.monthsElapsed.toFixed(1)} month interval: ${r.pctChange.toFixed(2)}% loss — moderate malnutrition criteria for ${r.label} (≥${thresholds[r.label].moderate}%)`);
-    }
-  });
-
   const formattedLine = rows
     .map((r) => {
       if (r.none) return `no data point available within ~${r.label}`;
-      return `${r.lbsChange.toFixed(2)}#/${r.pctChange.toFixed(2)}% ${r.direction} x ~${r.monthsElapsed.toFixed(1)} months`;
+      const sigTag = r.severity ? "sig" : "non-sig";
+      return `${r.pctChange.toFixed(2)}% (${r.lbsChange.toFixed(2)}#) ${r.direction} x ~${r.monthsElapsed.toFixed(1)} months (${sigTag})`;
     })
     .join(", ");
 
-  renderResults(mostRecent, rows, formattedLine, anySevere, anyModerate, severeNotes, moderateNotes);
+  renderResults(mostRecent, rows, formattedLine);
 }
 
-function renderResults(mostRecent, rows, formattedLine, anySevere, anyModerate, severeNotes, moderateNotes) {
+function renderResults(mostRecent, rows, formattedLine) {
   let html = "";
 
   html += `<div class="section"><h2>Most Recent Weight</h2>
@@ -266,31 +251,6 @@ function renderResults(mostRecent, rows, formattedLine, anySevere, anyModerate, 
 
   html += `<div class="section"><h2>Formatted Output</h2>
     <div class="output-box">${formattedLine}.</div></div>`;
-
-  if (anySevere) {
-    html += `<div class="verdict sig">
-      <h2>Severe Malnutrition Criteria Met (ASPEN/AND, Chronic Illness)</h2>
-      <ul>${severeNotes.map(n => `<li>${n}</li>`).join("")}</ul>
-    </div>`;
-  }
-  if (anyModerate && !anySevere) {
-    html += `<div class="verdict mod">
-      <h2>Moderate Malnutrition Criteria Met (ASPEN/AND, Chronic Illness)</h2>
-      <ul>${moderateNotes.map(n => `<li>${n}</li>`).join("")}</ul>
-    </div>`;
-  }
-  if (anyModerate && anySevere && moderateNotes.length) {
-    html += `<div class="verdict mod">
-      <h2>Additional Moderate Findings</h2>
-      <ul>${moderateNotes.map(n => `<li>${n}</li>`).join("")}</ul>
-    </div>`;
-  }
-  if (!anySevere && !anyModerate) {
-    html += `<div class="verdict ok">
-      <h2>No Malnutrition Criteria Met</h2>
-      <p>None of the calculable intervals meet ASPEN/AND chronic illness thresholds (5%/1mo, 7.5%/3mo, 10%/6mo, 20%/1yr).</p>
-    </div>`;
-  }
 
   document.getElementById("results").innerHTML = html;
 }
