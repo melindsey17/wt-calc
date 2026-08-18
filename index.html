@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -105,7 +104,7 @@
 <div class="container">
   <h1>Weight Trend Calculator</h1>
   <div class="subtitle">
-    Paste weight data (date, time, weight; clinic text ignored). Calculates clinically significant weight trends at ~1yr, ~6mo, ~3mo, and ~1mo, and classifies weight loss severity using ASPEN/AND chronic illness malnutrition criteria.
+    Paste weight data (date, time, weight — trailing text ignored). Calculates exact-elapsed-time trends at ~1yr, ~6mo, ~3mo, and ~1mo, and classifies weight loss severity using ASPEN/AND chronic illness malnutrition criteria.
   </div>
 
   <textarea id="rawData" placeholder="MM-DD-YY HH:MM:SS   weight   (any trailing text is ignored)"></textarea>
@@ -223,10 +222,50 @@ function calculate() {
     })
     .join(", ");
 
-  renderResults(mostRecent, rows, formattedLine);
+  const blurb = buildClinicalBlurb(rows);
+
+  renderResults(mostRecent, rows, formattedLine, blurb);
 }
 
-function renderResults(mostRecent, rows, formattedLine) {
+function buildClinicalBlurb(rows) {
+  const valid = rows.filter(r => !r.none);
+  if (!valid.length) return "Insufficient data to characterize a weight trend.";
+
+  const sigRows = valid.filter(r => r.severity && r.direction === "loss");
+  const lossRows = valid.filter(r => r.direction === "loss");
+  const gainRows = valid.filter(r => r.direction === "gain");
+
+  // Use the shortest interval with data as the "most current" trend direction
+  const shortest = valid.reduce((a, b) => (a.monthsElapsed < b.monthsElapsed ? a : b));
+  const longest = valid.reduce((a, b) => (a.monthsElapsed > b.monthsElapsed ? a : b));
+
+  let blurb = "";
+
+  if (sigRows.length > 0) {
+    const worst = sigRows.reduce((a, b) => (a.severity === "severe" && b.severity !== "severe" ? a : b));
+    blurb += `This patient demonstrates clinically significant unintentional weight loss meeting ASPEN/AND ${worst.severity} malnutrition criteria (${worst.pctChange.toFixed(1)}% loss over ~${worst.monthsElapsed.toFixed(1)} months). `;
+    if (sigRows.length > 1) {
+      blurb += `This is corroborated by significant loss across ${sigRows.length} of the ${valid.length} intervals assessed, suggesting a sustained rather than isolated decline. `;
+    }
+    blurb += `Nutrition intervention and further clinical work-up to identify contributing etiology (e.g., decreased intake, malabsorption, increased metabolic demand, or psychosocial factors) is recommended. `;
+  } else if (lossRows.length === valid.length) {
+    blurb += `Weight has trended downward across all assessed intervals, though the degree of loss does not meet ASPEN/AND significance thresholds at this time. `;
+    blurb += `Continued monitoring is reasonable to ensure the trend does not progress to a clinically significant rate of loss. `;
+  } else if (gainRows.length === valid.length) {
+    blurb += `Weight has trended upward across all assessed intervals with no evidence of unintentional weight loss. `;
+  } else {
+    blurb += `Weight has fluctuated over the assessed intervals without a consistent unidirectional trend, and no interval meets ASPEN/AND significant weight loss criteria. `;
+  }
+
+  // Add most-recent-direction context if it differs from the overall longest-interval trend
+  if (shortest.label !== longest.label && shortest.direction !== longest.direction) {
+    blurb += `Notably, the most recent short-term trend (~${shortest.monthsElapsed.toFixed(1)} months, ${shortest.direction}) differs in direction from the longer-term pattern (~${longest.monthsElapsed.toFixed(1)} months, ${longest.direction}), which may warrant closer attention to recent changes in status.`;
+  }
+
+  return blurb.trim();
+}
+
+function renderResults(mostRecent, rows, formattedLine, blurb) {
   let html = "";
 
   html += `<div class="section"><h2>Most Recent Weight</h2>
@@ -251,6 +290,9 @@ function renderResults(mostRecent, rows, formattedLine) {
 
   html += `<div class="section"><h2>Formatted Output</h2>
     <div class="output-box">${formattedLine}.</div></div>`;
+
+  html += `<div class="section"><h2>Clinical Summary</h2>
+    <div class="row" style="background:#f8fafc;">${blurb}</div></div>`;
 
   document.getElementById("results").innerHTML = html;
 }
