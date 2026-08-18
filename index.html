@@ -203,9 +203,18 @@ function calculate() {
 
     let severity = null;
     if (direction === "loss") {
-      const t = thresholds[label];
-      if (absPct > t.severe) severity = "severe";
-      else if (absPct >= t.moderate) severity = "moderate";
+      // Check against EVERY threshold, not just this interval's own label.
+      // This prevents the same underlying data point/percentage from being
+      // called "sig" under one label and "non-sig" under another when it
+      // happens to be the closest match for more than one window.
+      intervalOrder.forEach(otherLabel => {
+        const t = thresholds[otherLabel];
+        if (absPct > t.severe) {
+          if (severity !== "severe") severity = "severe";
+        } else if (absPct >= t.moderate) {
+          if (!severity) severity = "moderate";
+        }
+      });
     }
 
     rows.push({
@@ -240,7 +249,7 @@ function buildClinicalBlurb(rows) {
     const spanNote = sigRows.length > 1 ? `sustained across ${sigRows.length} intervals` : `isolated to one interval`;
     return `Clinically significant weight loss (${worst.severity}) — ${worst.pctChange.toFixed(1)}% over ~${worst.monthsElapsed.toFixed(1)} months, ${spanNote}. Recommend nutrition intervention and work-up for etiology.`;
   } else if (lossRows.length === valid.length) {
-    return `Downward weight trend across all intervals; but does not yet meet ASPEN/AND significance for malnutrition. Continue monitoring.`;
+    return `Downward weight trend across all intervals; does not yet meet ASPEN/AND significance. Continue monitoring.`;
   } else if (gainRows.length === valid.length) {
     return `Upward weight trend across all intervals; no evidence of unintentional weight loss.`;
   } else {
