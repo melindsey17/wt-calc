@@ -196,7 +196,7 @@ function calculate() {
     const maxDate = subtractMonths(refDate, bounds.min); // upper bound: must be at least `min` months back
     const minDate = subtractMonths(refDate, bounds.max);  // lower bound: no more than `max` months back
     const candidates = entries.filter(e => e.date >= minDate && e.date < maxDate);
-    candidates.sort((a, b) => b.date - a.date); // closest to the min boundary (most recent within range)
+    candidates.sort((a, b) => a.date - b.date); // OLDEST within window = closest to the far boundary
     const chosen = candidates[0];
 
     if (!chosen) {
